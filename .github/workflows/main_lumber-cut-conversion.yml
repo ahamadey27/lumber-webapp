@@ -25,18 +25,16 @@ jobs:
           dotnet-version: '9.x'
 
       - name: Build with dotnet
-        working-directory: lumber-app
-        run: dotnet build lumber-app.sln --configuration Release
+        run: dotnet build lumber-app/lumber-app.csproj --configuration Release
 
       - name: dotnet publish
-        working-directory: lumber-app
-        run: dotnet publish lumber-app.csproj -c Release -o ${{ github.workspace }}/publish_output
+        run: dotnet publish lumber-app/lumber-app.csproj -c Release -o "${{ github.workspace }}/myapp"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{ github.workspace }}/publish_output
+          path: ${{ github.workspace }}/myapp
 
   deploy:
     runs-on: windows-latest
