@@ -36,7 +36,7 @@ jobs:
         working-directory: lumber-app # Execute in GITHUB_WORKSPACE/lumber-app
         # Attempt to build the solution file if present, or a project file.
         # If lumber-app.sln is in this directory, it should be picked up.
-        run: dotnet build --configuration Release
+        run: dotnet build lumber-app.sln --configuration Release
 
       - name: dotnet publish
         working-directory: lumber-app # Execute in GITHUB_WORKSPACE/lumber-app
