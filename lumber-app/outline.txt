@@ -1,0 +1,1085 @@
+Lumber Optimizer Web App: Phased Development Plan
+This plan will guide you through building your Unit Converter and Board-Cut Optimizer web application using ASP.NET Core Razor Pages.
+Phase 1: Project Setup & Core Models
+Goal: Get your development environment ready and define the basic data structures.
+Environment Setup:
+Install .NET SDK: Ensure you have the latest .NET 8 SDK installed (or .NET 7 if you prefer). You can download it from the official .NET website.
+IDE: Use Visual Studio 2022 (Community Edition is free and excellent) or Visual Studio Code with C# Dev Kit extension.
+Azure Account: If you don't have one, sign up for a free Azure account. This will be needed for deployment later.
+Create ASP.NET Core Razor Pages Project:
+Using Visual Studio:
+Open Visual Studio.
+Click "Create a new project."
+Search for "ASP.NET Core Web App (Razor Pages)".
+Name your project (e.g., LumberOptimizerWeb).
+Choose a location.
+Select .NET 8.0 (or 7.0) as the framework.
+Authentication type: None (for simplicity now).
+Configure for HTTPS: Checked.
+Click "Create."
+Using .NET CLI:
+dotnet new razor -n LumberOptimizerWeb -f net8.0
+cd LumberOptimizerWeb
+
+
+Define Core Models:
+Create a folder named Models in your project.
+Inside Models, create Board.cs:
+// Models/Board.cs
+namespace LumberOptimizerWeb.Models
+{
+    public class Board
+    {
+        public int Id { get; set; } // For list management in UI
+        public double Length { get; set; } // Store in a consistent unit, e.g., inches
+        public string LengthUnit { get; set; } = "ft"; // Default unit, can be ft, in, m, cm
+        public int Quantity { get; set; }
+
+        // Helper to get length in inches for calculations
+        public double LengthInInches
+        {
+            get
+            {
+                return UnitConverter.ConvertToInches(Length, LengthUnit);
+            }
+        }
+    }
+}
+
+
+Inside Models, create DesiredCut.cs:
+// Models/DesiredCut.cs
+namespace LumberOptimizerWeb.Models
+{
+    public class DesiredCut
+    {
+        public int Id { get; set; } // For list management in UI
+        public double Length { get; set; }
+        public string LengthUnit { get; set; } = "ft";
+        public int Quantity { get; set; }
+
+        public double LengthInInches
+        {
+            get
+            {
+                return UnitConverter.ConvertToInches(Length, LengthUnit);
+            }
+        }
+    }
+}
+
+
+We'll also need a UnitConverter static class later, but the models reference it now. Let's create a placeholder for it in a Services folder.
+Create a folder named Services.
+Inside Services, create UnitConverter.cs:
+// Services/UnitConverter.cs
+namespace LumberOptimizerWeb.Services
+{
+    public static class UnitConverter
+    {
+        // Basic conversion factors (to inches)
+        private const double InchesPerFoot = 12.0;
+        private const double InchesPerMeter = 39.3701;
+        private const double InchesPerCentimeter = 0.393701;
+
+        public static double ConvertToInches(double value, string unit)
+        {
+            return unit.ToLower() switch
+            {
+                "ft" or "feet" => value * InchesPerFoot,
+                "in" or "inches" => value,
+                "m" or "meters" => value * InchesPerMeter,
+                "cm" or "centimeters" => value * InchesPerCentimeter,
+                _ => throw new ArgumentException("Unsupported unit for conversion to inches.")
+            };
+        }
+
+        public static double ConvertFromInches(double inches, string targetUnit)
+        {
+            return targetUnit.ToLower() switch
+            {
+                "ft" or "feet" => inches / InchesPerFoot,
+                "in" or "inches" => inches,
+                "m" or "meters" => inches / InchesPerMeter,
+                "cm" or "centimeters" => inches / InchesPerCentimeter,
+                _ => throw new ArgumentException("Unsupported unit for conversion from inches.")
+            };
+        }
+
+        // Add more conversions as needed (e.g., inches to feet/inches string)
+        public static string FormatInchesToFeetAndInches(double totalInches)
+        {
+            if (totalInches < 0) totalInches = 0; // Or handle negative appropriately
+            double feet = Math.Floor(totalInches / InchesPerFoot);
+            double remainingInches = Math.Round(totalInches % InchesPerFoot, 2);
+            return $"{feet} ft {remainingInches} in";
+        }
+    }
+}
+
+
+Basic Project Structure Review:
+Familiarize yourself with the Pages folder (where your Razor Pages will live), wwwroot (for static files like CSS, JS), and Program.cs (app startup and service configuration).
+Checkpoint: You should have a runnable (though empty) ASP.NET Core application and the initial models.
+Phase 2: Unit Converter Feature
+Goal: Implement the unit conversion functionality.
+Create Razor Page for Unit Converter:
+In the Pages folder, create a new Razor Page named UnitConverter.cshtml.
+Right-click Pages -> Add -> Razor Page... -> Razor Page - Empty.
+Name it UnitConverter.
+This will create UnitConverter.cshtml (HTML markup) and UnitConverter.cshtml.cs (C# code-behind).
+Design Unit Converter UI (UnitConverter.cshtml):
+@page
+@model LumberOptimizerWeb.Pages.UnitConverterModel
+@{
+    ViewData["Title"] = "Unit Converter";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<form method="post">
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label asp-for="InputValue" class="form-label">Value</label>
+            <input asp-for="InputValue" class="form-control" />
+            <span asp-validation-for="InputValue" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="FromUnit" class="form-label">From Unit</label>
+            <select asp-for="FromUnit" asp-items="Model.AvailableUnits" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="ToUnit" class="form-label">To Unit</label>
+            <select asp-for="ToUnit" asp-items="Model.AvailableUnits" class="form-select"></select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary">Convert</button>
+        </div>
+    </div>
+</form>
+
+@if (Model.Result.HasValue)
+{
+    <div class="alert alert-success mt-3">
+        <h4>Result: @Model.Result.Value.ToString("F4") @Model.ToUnit</h4>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mt-3">
+        <h4>Error: @Model.ErrorMessage</h4>
+    </div>
+}
+
+
+Implement Logic in Code-Behind (UnitConverter.cshtml.cs):
+// Pages/UnitConverter.cshtml.cs
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System.ComponentModel.DataAnnotations;
+using LumberOptimizerWeb.Services; // For our static UnitConverter
+
+namespace LumberOptimizerWeb.Pages
+{
+    public class UnitConverterModel : PageModel
+    {
+        [BindProperty]
+        [Required]
+        public double? InputValue { get; set; }
+
+        [BindProperty]
+        [Required]
+        public string FromUnit { get; set; } = "ft";
+
+        [BindProperty]
+        [Required]
+        public string ToUnit { get; set; } = "in";
+
+        public double? Result { get; set; }
+        public string? ErrorMessage { get; set; }
+
+        public List<SelectListItem> AvailableUnits { get; } = new List<SelectListItem>
+        {
+            new SelectListItem { Value = "in", Text = "Inches (in)" },
+            new SelectListItem { Value = "ft", Text = "Feet (ft)" },
+            new SelectListItem { Value = "m", Text = "Meters (m)" },
+            new SelectListItem { Value = "cm", Text = "Centimeters (cm)" }
+            // Add more units as desired
+        };
+
+        public void OnGet()
+        {
+            // Optional: Set default values or load something on page load
+        }
+
+        public IActionResult OnPost()
+        {
+            if (!ModelState.IsValid)
+            {
+                return Page();
+            }
+
+            if (InputValue.HasValue)
+            {
+                try
+                {
+                    double valueInInches = Services.UnitConverter.ConvertToInches(InputValue.Value, FromUnit);
+                    Result = Services.UnitConverter.ConvertFromInches(valueInInches, ToUnit);
+                    ErrorMessage = null;
+                }
+                catch (ArgumentException ex)
+                {
+                    Result = null;
+                    ErrorMessage = ex.Message;
+                }
+            }
+            return Page();
+        }
+    }
+}
+
+
+Add Navigation Link:
+Open Pages/Shared/_Layout.cshtml.
+Add a link to the navigation bar:
+<li class="nav-item">
+    <a class="nav-link text-dark" asp-area="" asp-page="/UnitConverter">Unit Converter</a>
+</li>
+
+
+Checkpoint: You should have a working unit converter page. Test it with various inputs.
+Phase 3: Board-Cut Optimizer - Service Interface & Data Structures
+Goal: Define the contract for your optimization logic and any supporting classes.
+Define ICuttingOptimizer Service Interface:
+In the Services folder, create ICuttingOptimizer.cs:
+// Services/ICuttingOptimizer.cs
+using LumberOptimizerWeb.Models;
+using System.Collections.Generic;
+
+namespace LumberOptimizerWeb.Services
+{
+    public class CutPlanResult
+    {
+        public List<OptimizedCut> OptimizedCuts { get; set; } = new List<OptimizedCut>();
+        public List<Board> RemainingBoards { get; set; } = new List<Board>(); // Boards with leftover pieces
+        public double TotalWasteInches { get; set; }
+        public double AdditionalMaterialNeededInches { get; set; }
+        public string Message { get; set; } = string.Empty;
+
+        public string AdditionalMaterialNeededFormatted =>
+            Services.UnitConverter.FormatInchesToFeetAndInches(AdditionalMaterialNeededInches);
+
+        public string TotalWasteFormatted =>
+            Services.UnitConverter.FormatInchesToFeetAndInches(TotalWasteInches);
+    }
+
+    public class OptimizedCut
+    {
+        public DesiredCut OriginalDesiredCut { get; set; } = new DesiredCut();
+        public int QuantityToCut { get; set; }
+        public Board SourceBoard { get; set; } = new Board(); // Which available board to cut from
+        public int SourceBoardOriginalIndex { get; set; } // To identify original board if multiple are identical
+        public double CutLengthInches { get; set; }
+    }
+
+    public interface ICuttingOptimizer
+    {
+        CutPlanResult OptimizeCuts(
+            List<Board> availableBoards,
+            List<DesiredCut> desiredCuts);
+    }
+}
+
+
+The CutPlanResult will hold the output of your algorithm.
+OptimizedCut details which desired cut is taken from which source board.
+Create a Basic Implementation (Placeholder):
+In Services, create SimpleCuttingOptimizer.cs:
+// Services/SimpleCuttingOptimizer.cs
+using LumberOptimizerWeb.Models;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace LumberOptimizerWeb.Services
+{
+    public class SimpleCuttingOptimizer : ICuttingOptimizer
+    {
+        public CutPlanResult OptimizeCuts(
+            List<Board> availableBoards,
+            List<DesiredCut> desiredCuts)
+        {
+            var result = new CutPlanResult();
+            // --- Initial Setup ---
+            // Convert all board lengths to inches and expand quantities
+            var allAvailableBoardPieces = new List<(Board originalBoard, int originalIndex, double lengthInches, int pieceId)>();
+            int boardIdx = 0;
+            int pieceCounter = 0;
+            foreach (var board in availableBoards)
+            {
+                for (int i = 0; i < board.Quantity; i++)
+                {
+                    allAvailableBoardPieces.Add((board, boardIdx, board.LengthInInches, pieceCounter++));
+                }
+                boardIdx++;
+            }
+
+            // Convert all desired cut lengths to inches and sort by length (descending often good for greedy)
+            // Also expand quantities
+            var allDesiredCutPieces = new List<(DesiredCut originalCut, double lengthInches, int cutId)>();
+            int cutIdx = 0;
+            foreach (var cut in desiredCuts.OrderByDescending(c => c.LengthInInches))
+            {
+                for (int i = 0; i < cut.Quantity; i++)
+                {
+                    allDesiredCutPieces.Add((cut, cut.LengthInInches, cutIdx++));
+                }
+            }
+
+            // --- Simple Greedy Algorithm (First Fit Decreasing Height) ---
+            // This is a basic example. More sophisticated algorithms exist (e.g., bin packing variations).
+            var tempBoardPieces = allAvailableBoardPieces.Select(b => new {
+                b.originalBoard,
+                b.originalIndex,
+                CurrentLengthInches = b.lengthInches,
+                b.pieceId,
+                CutsMade = new List<OptimizedCut>()
+            }).ToList();
+
+            double totalDesiredLength = allDesiredCutPieces.Sum(c => c.lengthInches);
+            double totalAvailableLength = allAvailableBoardPieces.Sum(b => b.lengthInches);
+            result.AdditionalMaterialNeededInches = Math.Max(0, totalDesiredLength - totalAvailableLength);
+
+            int desiredCutsFulfilled = 0;
+
+            foreach (var desiredCutItem in allDesiredCutPieces)
+            {
+                bool cutMade = false;
+                // Try to fit this cut into an existing board piece
+                var bestFitBoard = tempBoardPieces
+                    .Where(bp => bp.CurrentLengthInches >= desiredCutItem.lengthInches)
+                    .OrderBy(bp => bp.CurrentLengthInches - desiredCutItem.lengthInches) // Best fit
+                    // .ThenByDescending(bp => bp.CurrentLengthInches) // Or First fit from longest
+                    .FirstOrDefault();
+
+                if (bestFitBoard != null)
+                {
+                    result.OptimizedCuts.Add(new OptimizedCut
+                    {
+                        OriginalDesiredCut = desiredCutItem.originalCut,
+                        QuantityToCut = 1, // Since we expanded cuts
+                        SourceBoard = bestFitBoard.originalBoard,
+                        SourceBoardOriginalIndex = bestFitBoard.originalIndex,
+                        CutLengthInches = desiredCutItem.lengthInches
+                    });
+                    // Update the board piece
+                    var boardToUpdate = tempBoardPieces.First(b => b.pieceId == bestFitBoard.pieceId);
+                    // This is tricky because tempBoardPieces contains anonymous types.
+                    // For a real implementation, use a class for board pieces.
+                    // Let's re-think how to update: we need to modify the list of board pieces.
+
+                    // A better way: keep a list of current board lengths.
+                    // This simple example will get complex quickly.
+                    // For now, let's assume we can track remaining lengths.
+                    // This part needs significant refinement for a real algorithm.
+
+                    // Placeholder: Assume cut is made and we just count.
+                    // In a real scenario, you'd update the remaining length of the source board.
+                    desiredCutsFulfilled++;
+                    cutMade = true;
+                }
+
+                if (!cutMade)
+                {
+                    // This cut could not be made from available stock.
+                    // The AdditionalMaterialNeededInches already accounts for total shortfall.
+                    // You might want more granular tracking of unfulfilled cuts.
+                }
+            }
+
+            if (desiredCutsFulfilled < allDesiredCutPieces.Count)
+            {
+                result.Message = $"Could not fulfill all desired cuts. {allDesiredCutPieces.Count - desiredCutsFulfilled} cuts remaining.";
+            } else if (result.AdditionalMaterialNeededInches > 0) {
+                result.Message = $"Not enough material. Additional needed: {result.AdditionalMaterialNeededFormatted}";
+            }
+            else
+            {
+                result.Message = "Optimization complete.";
+            }
+
+            // Calculate waste (this is also simplified)
+            // True waste is (Total original length of boards used) - (Total length of useful cuts made from them)
+            // Leftover pieces are also important.
+            // This placeholder doesn't accurately calculate waste or remaining pieces yet.
+            result.TotalWasteInches = Math.Max(0, totalAvailableLength - totalDesiredLength);
+            if (result.AdditionalMaterialNeededInches > 0) result.TotalWasteInches = 0;
+
+
+            // This is a VERY basic placeholder. The actual algorithm is the core challenge.
+            // We will refine this in Phase 5.
+            // For now, it just signals if there's enough total length.
+            result.Message = "Optimizer logic is a placeholder. Actual cutting plan not yet generated.";
+            return result;
+        }
+    }
+}
+
+
+Note: The algorithm here is very rudimentary. We'll focus on the UI first and then refine the algorithm. The cutting problem (related to bin packing) is complex.
+Register Service in Program.cs:
+// Program.cs (add these lines before builder.Build())
+using LumberOptimizerWeb.Services; // Add this using
+
+// ... other services
+builder.Services.AddScoped<ICuttingOptimizer, SimpleCuttingOptimizer>();
+// ...
+var app = builder.Build();
+// ...
+
+
+Checkpoint: You have the interface for your optimizer and a basic (non-functional for actual cutting plans yet) implementation registered.
+Phase 4: Board-Cut Optimizer - UI for Input
+Goal: Create the Razor Page for users to input available boards and desired cuts, including dynamic row adding.
+Create Razor Page for Optimizer:
+In Pages, create BoardOptimizer.cshtml and its code-behind BoardOptimizer.cshtml.cs.
+Design Optimizer Input UI (BoardOptimizer.cshtml):
+This is the most complex UI part due to dynamic rows. We'll use a bit of JavaScript.
+@page
+@model LumberOptimizerWeb.Pages.BoardOptimizerModel
+@{
+    ViewData["Title"] = "Board Cut Optimizer";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<form method="post" id="optimizerForm">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h3>Available Boards</h3>
+            <div id="availableBoardsContainer">
+                @for (int i = 0; i < Model.AvailableBoards.Count; i++)
+                {
+                    <div class="row g-3 align-items-center mb-2 board-entry">
+                        <input type="hidden" asp-for="AvailableBoards[i].Id" />
+                        <div class="col-auto">
+                            <label class="col-form-label">Board @(i + 1):</label>
+                        </div>
+                        <div class="col">
+                            <input asp-for="AvailableBoards[i].Length" class="form-control" placeholder="Length" />
+                            <span asp-validation-for="AvailableBoards[i].Length" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <select asp-for="AvailableBoards[i].LengthUnit" asp-items="Model.AvailableUnits" class="form-select"></select>
+                        </div>
+                        <div class="col">
+                            <input asp-for="AvailableBoards[i].Quantity" class="form-control" placeholder="Qty" />
+                            <span asp-validation-for="AvailableBoards[i].Quantity" class="text-danger"></span>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-sm btn-danger remove-board" onclick="removeRow(this, 'board')">X</button>
+                        </div>
+                    </div>
+                }
+            </div>
+            <button type="button" id="addBoard" class="btn btn-sm btn-success mt-2 mb-3">+ Add Board</button>
+        </div>
+
+        <div class="col-md-6">
+            <h3>Desired Cuts</h3>
+            <div id="desiredCutsContainer">
+                @for (int i = 0; i < Model.DesiredCuts.Count; i++)
+                {
+                    <div class="row g-3 align-items-center mb-2 cut-entry">
+                        <input type="hidden" asp-for="DesiredCuts[i].Id" />
+                        <div class="col-auto">
+                            <label class="col-form-label">Cut @(i + 1):</label>
+                        </div>
+                        <div class="col">
+                            <input asp-for="DesiredCuts[i].Length" class="form-control" placeholder="Length" />
+                            <span asp-validation-for="DesiredCuts[i].Length" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <select asp-for="DesiredCuts[i].LengthUnit" asp-items="Model.AvailableUnits" class="form-select"></select>
+                        </div>
+                        <div class="col">
+                            <input asp-for="DesiredCuts[i].Quantity" class="form-control" placeholder="Qty" />
+                            <span asp-validation-for="DesiredCuts[i].Quantity" class="text-danger"></span>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-sm btn-danger remove-cut" onclick="removeRow(this, 'cut')">X</button>
+                        </div>
+                    </div>
+                }
+            </div>
+            <button type="button" id="addCut" class="btn btn-sm btn-success mt-2 mb-3">+ Add Cut</button>
+        </div>
+    </div>
+
+    <hr />
+    <button type="submit" class="btn btn-primary btn-lg">Optimize Cuts</button>
+</form>
+
+@if (Model.CutResult != null)
+{
+    <h3 class="mt-4">Optimization Results</h3>
+    <div class="alert @(Model.CutResult.AdditionalMaterialNeededInches > 0 ? "alert-warning" : "alert-success")">
+        <p><strong>@Model.CutResult.Message</strong></p>
+        @if (Model.CutResult.AdditionalMaterialNeededInches > 0)
+        {
+            <p>Additional Material Needed: <strong>@Model.CutResult.AdditionalMaterialNeededFormatted</strong></p>
+        }
+        else
+        {
+            <p>Estimated Total Waste (from used boards): <strong>@Model.CutResult.TotalWasteFormatted</strong> (this is a rough estimate)</p>
+        }
+    </div>
+
+    @if (Model.CutResult.OptimizedCuts.Any())
+    {
+        <h4>Cutting Plan:</h4>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Desired Cut</th>
+                    <th>Source Board (Original Type)</th>
+                    <th>Quantity from this Source</th>
+                    <th>Cut Length</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var cut in Model.CutResult.OptimizedCuts.GroupBy(oc => new { oc.OriginalDesiredCut.Id, oc.SourceBoard.Id, oc.SourceBoardOriginalIndex }))
+                {
+                    var firstCut = cut.First();
+                    <tr>
+                        <td>@(firstCut.OriginalDesiredCut.Length) @firstCut.OriginalDesiredCut.LengthUnit (ID: @firstCut.OriginalDesiredCut.Id)</td>
+                        <td>Board Type @(Model.AvailableBoards.IndexOf(Model.AvailableBoards.Find(b => b.Id == firstCut.SourceBoard.Id && Model.AvailableBoards.IndexOf(b) == firstCut.SourceBoardOriginalIndex) ?? firstCut.SourceBoard) + 1)
+                            (@firstCut.SourceBoard.Length @firstCut.SourceBoard.LengthUnit)
+                        </td>
+                        <td>@cut.Count()</td>
+                        <td>@Services.UnitConverter.FormatInchesToFeetAndInches(firstCut.CutLengthInches)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if(Model.CutResult.AdditionalMaterialNeededInches == 0 && !Model.CutResult.OptimizedCuts.Any() && Model.DesiredCuts.Any())
+    {
+         <p>No cuts were planned. Check algorithm logic if cuts were expected.</p>
+    }
+
+
+    @if (Model.CutResult.RemainingBoards.Any())
+    {
+        <h4>Remaining Board Pieces (Potential Usable Offcuts):</h4>
+        <ul>
+            @foreach (var board in Model.CutResult.RemainingBoards)
+            {
+                <li>Board (Original Type @board.Id): @Services.UnitConverter.FormatInchesToFeetAndInches(board.LengthInInches) remaining</li>
+            }
+        </ul>
+    }
+}
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let boardCounter = @Model.AvailableBoards.Count;
+        let cutCounter = @Model.DesiredCuts.Count;
+        const maxEntries = 20;
+
+        document.getElementById('addBoard').addEventListener('click', function () {
+            if (document.querySelectorAll('#availableBoardsContainer .board-entry').length >= maxEntries) {
+                alert('Maximum of ' + maxEntries + ' board types reached.');
+                return;
+            }
+            const container = document.getElementById('availableBoardsContainer');
+            const newIndex = document.querySelectorAll('#availableBoardsContainer .board-entry').length; // Dynamic index
+            const newEntry = `
+                <div class="row g-3 align-items-center mb-2 board-entry">
+                    <input type="hidden" name="AvailableBoards[${newIndex}].Id" value="${newIndex + 1000}" /> <div class="col-auto"><label class="col-form-label">Board ${newIndex + 1}:</label></div>
+                    <div class="col"><input type="number" step="any" class="form-control" name="AvailableBoards[${newIndex}].Length" placeholder="Length" /></div>
+                    <div class="col">
+                        <select class="form-select" name="AvailableBoards[${newIndex}].LengthUnit">
+                            @foreach(var unit in Model.AvailableUnits) { <option value="@unit.Value">@unit.Text</option> }
+                        </select>
+                    </div>
+                    <div class="col"><input type="number" class="form-control" name="AvailableBoards[${newIndex}].Quantity" placeholder="Qty" /></div>
+                    <div class="col-auto"><button type="button" class="btn btn-sm btn-danger remove-board" onclick="removeRow(this, 'board')">X</button></div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', newEntry);
+            // Re-parse form validation for dynamically added elements (if using client-side jQuery unobtrusive validation)
+            // var form = $("#optimizerForm");
+            // form.removeData('validator');
+            // form.removeData('unobtrusiveValidation');
+            // $.validator.unobtrusive.parse(form);
+        });
+
+        document.getElementById('addCut').addEventListener('click', function () {
+             if (document.querySelectorAll('#desiredCutsContainer .cut-entry').length >= maxEntries) {
+                alert('Maximum of ' + maxEntries + ' cut types reached.');
+                return;
+            }
+            const container = document.getElementById('desiredCutsContainer');
+            const newIndex = document.querySelectorAll('#desiredCutsContainer .cut-entry').length; // Dynamic index
+            const newEntry = `
+                <div class="row g-3 align-items-center mb-2 cut-entry">
+                     <input type="hidden" name="DesiredCuts[${newIndex}].Id" value="${newIndex + 2000}" /> <div class="col-auto"><label class="col-form-label">Cut ${newIndex + 1}:</label></div>
+                    <div class="col"><input type="number" step="any" class="form-control" name="DesiredCuts[${newIndex}].Length" placeholder="Length" /></div>
+                    <div class="col">
+                        <select class="form-select" name="DesiredCuts[${newIndex}].LengthUnit">
+                            @foreach(var unit in Model.AvailableUnits) { <option value="@unit.Value">@unit.Text</option> }
+                        </select>
+                    </div>
+                    <div class="col"><input type="number" class="form-control" name="DesiredCuts[${newIndex}].Quantity" placeholder="Qty" /></div>
+                    <div class="col-auto"><button type="button" class="btn btn-sm btn-danger remove-cut" onclick="removeRow(this, 'cut')">X</button></div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', newEntry);
+        });
+
+        function removeRow(button, type) {
+            button.closest(type === 'board' ? '.board-entry' : '.cut-entry').remove();
+            // Re-index remaining items if necessary for model binding on server,
+            // or ensure server-side logic can handle gaps or uses unique IDs.
+            // For simplicity, ASP.NET Core model binding can often handle non-sequential indices if names are correct.
+            // Renumbering labels:
+            if (type === 'board') {
+                document.querySelectorAll('#availableBoardsContainer .board-entry').forEach((entry, idx) => {
+                    entry.querySelector('label.col-form-label').textContent = `Board ${idx + 1}:`;
+                });
+            } else {
+                 document.querySelectorAll('#desiredCutsContainer .cut-entry').forEach((entry, idx) => {
+                    entry.querySelector('label.col-form-label').textContent = `Cut ${idx + 1}:`;
+                });
+            }
+        }
+
+        // Initialize with one empty row if model lists are empty on first load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.querySelectorAll('#availableBoardsContainer .board-entry').length === 0) {
+                document.getElementById('addBoard').click();
+            }
+            if (document.querySelectorAll('#desiredCutsContainer .cut-entry').length === 0) {
+                document.getElementById('addCut').click();
+            }
+        });
+    </script>
+}
+
+
+Implement Logic in Code-Behind (BoardOptimizer.cshtml.cs):
+// Pages/BoardOptimizer.cshtml.cs
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using LumberOptimizerWeb.Models;
+using LumberOptimizerWeb.Services;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+
+namespace LumberOptimizerWeb.Pages
+{
+    public class BoardOptimizerModel : PageModel
+    {
+        private readonly ICuttingOptimizer _optimizer;
+
+        public BoardOptimizerModel(ICuttingOptimizer optimizer)
+        {
+            _optimizer = optimizer;
+        }
+
+        [BindProperty]
+        public List<Board> AvailableBoards { get; set; } = new List<Board>();
+
+        [BindProperty]
+        public List<DesiredCut> DesiredCuts { get; set; } = new List<DesiredCut>();
+
+        public CutPlanResult? CutResult { get; set; }
+
+        public List<SelectListItem> AvailableUnits { get; } = new List<SelectListItem>
+        {
+            new SelectListItem { Value = "in", Text = "Inches (in)" },
+            new SelectListItem { Value = "ft", Text = "Feet (ft)" },
+            new SelectListItem { Value = "m", Text = "Meters (m)" },
+            new SelectListItem { Value = "cm", Text = "Centimeters (cm)" }
+        };
+
+        public void OnGet()
+        {
+            // Initialize with one empty entry for user to fill, if lists are empty
+            // The JS will also handle this if the model starts empty.
+            if (!AvailableBoards.Any())
+            {
+                // AvailableBoards.Add(new Board { Id = 1 }); // JS handles initial add
+            }
+            if (!DesiredCuts.Any())
+            {
+                // DesiredCuts.Add(new DesiredCut { Id = 1 }); // JS handles initial add
+            }
+        }
+
+        public IActionResult OnPost()
+        {
+            // Server-side validation example for quantities (can also be done with attributes)
+            for(int i=0; i < AvailableBoards.Count; i++)
+            {
+                if (AvailableBoards[i].Quantity <= 0)
+                    ModelState.AddModelError($"AvailableBoards[{i}].Quantity", "Quantity must be positive.");
+                if (AvailableBoards[i].Length <= 0)
+                    ModelState.AddModelError($"AvailableBoards[{i}].Length", "Length must be positive.");
+            }
+            for(int i=0; i < DesiredCuts.Count; i++)
+            {
+                if (DesiredCuts[i].Quantity <= 0)
+                    ModelState.AddModelError($"DesiredCuts[{i}].Quantity", "Quantity must be positive.");
+                if (DesiredCuts[i].Length <= 0)
+                    ModelState.AddModelError($"DesiredCuts[{i}].Length", "Length must be positive.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return Page();
+            }
+
+            if (AvailableBoards.Any() && DesiredCuts.Any())
+            {
+                // Assign temporary IDs if they are 0, for tracking in results if needed
+                // The JS side gives temporary high IDs, so we can use those or re-assign
+                int tempIdCounter = 1;
+                AvailableBoards.ForEach(b => { if (b.Id == 0) b.Id = tempIdCounter++; });
+                tempIdCounter = 1;
+                DesiredCuts.ForEach(c => { if (c.Id == 0) c.Id = tempIdCounter++; });
+
+                CutResult = _optimizer.OptimizeCuts(AvailableBoards, DesiredCuts);
+            }
+            else
+            {
+                // Handle case where one or both lists might be empty after submission
+                // (e.g., if user removes all rows and submits)
+                CutResult = new CutPlanResult { Message = "Please provide available boards and desired cuts." };
+            }
+
+            return Page();
+        }
+    }
+}
+
+
+
+Add Navigation Link:
+In Pages/Shared/_Layout.cshtml, add:
+<li class="nav-item">
+    <a class="nav-link text-dark" asp-area="" asp-page="/BoardOptimizer">Board Optimizer</a>
+</li>
+
+
+Checkpoint: You should have a page where you can dynamically add/remove board and cut entries, and submit them. The optimization result will still be basic.
+Phase 5: Board-Cut Optimizer - Algorithm Implementation (Core Logic)
+Goal: Implement a more functional (though still potentially basic) cutting algorithm. This is the most challenging part.
+Algorithm Strategy:
+The problem is a variation of the Bin Packing Problem (specifically, the Cutting Stock Problem), which is NP-hard. This means finding the absolute perfect solution can be very computationally expensive for large inputs. We'll aim for a good heuristic (rule-of-thumb algorithm).
+A common approach is a First Fit Decreasing Height (FFDH) or Best Fit Decreasing Height (BFDH) greedy algorithm:
+Standardize Units: Convert all board lengths and cut lengths to a single unit (e.g., inches).
+Sort Desired Cuts: Sort the desired cuts, typically by length in descending order. This tries to place larger cuts first, which often leaves more manageable smaller spaces.
+Iterate Through Cuts: For each desired cut (and for each quantity of that cut):
+Find an available board (or a piece of a board already cut from) that can accommodate this cut.
+First Fit: Pick the first board piece you find that fits.
+Best Fit: Pick the board piece that fits and leaves the smallest possible remnant (this can sometimes lead to unusable tiny remnants, so it's a trade-off).
+"Make" the cut: Record which board it came from and reduce the remaining length of that source board piece.
+If a cut is made, the remaining part of the source board becomes a new, smaller "available piece" for subsequent cuts.
+Track Waste: Waste is the sum of all unusable remnants.
+Track Shortfall: If you run out of board material before all desired cuts are made, calculate how much more is needed.
+Refine SimpleCuttingOptimizer.cs:
+// Services/SimpleCuttingOptimizer.cs
+using LumberOptimizerWeb.Models;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace LumberOptimizerWeb.Services
+{
+    // Represents a piece of an available board, its current length, and cuts made from it.
+    public class BoardPiece
+    {
+        public Board OriginalBoard { get; }
+        public int OriginalBoardIndex { get; } // Index in the initial list of board types
+        public int PieceInstanceId { get; } // Unique ID for this specific piece (e.g. if BoardType1 has Qty 5, there are 5 pieces)
+        public double CurrentLengthInches { get; set; }
+        public List<OptimizedCutDetail> CutsMade { get; } = new List<OptimizedCutDetail>();
+
+        public BoardPiece(Board originalBoard, int originalBoardIndex, double initialLengthInches, int pieceInstanceId)
+        {
+            OriginalBoard = originalBoard;
+            OriginalBoardIndex = originalBoardIndex;
+            CurrentLengthInches = initialLengthInches;
+            PieceInstanceId = pieceInstanceId;
+        }
+    }
+
+    public class OptimizedCutDetail // More detailed than the result one for internal tracking
+    {
+        public DesiredCut DesiredCut { get; set; } = new DesiredCut();
+        public double LengthInches { get; set; }
+    }
+
+
+    public class SimpleCuttingOptimizer : ICuttingOptimizer
+    {
+        public CutPlanResult OptimizeCuts(
+            List<Board> availableBoardTypes, // Renamed for clarity
+            List<DesiredCut> desiredCutTypes) // Renamed for clarity
+        {
+            var result = new CutPlanResult();
+
+            // 1. Expand available boards by quantity and convert to inches
+            var availableBoardPieces = new List<BoardPiece>();
+            int pieceInstanceCounter = 0;
+            for (int i = 0; i < availableBoardTypes.Count; i++)
+            {
+                var boardType = availableBoardTypes[i];
+                for (int j = 0; j < boardType.Quantity; j++)
+                {
+                    availableBoardPieces.Add(new BoardPiece(boardType, i, boardType.LengthInInches, pieceInstanceCounter++));
+                }
+            }
+
+            // 2. Expand desired cuts by quantity, convert to inches, and sort (e.g., by length descending)
+            var allDesiredCutInstances = new List<DesiredCut>();
+            foreach (var cutType in desiredCutTypes.OrderByDescending(c => c.LengthInInches))
+            {
+                for (int i = 0; i < cutType.Quantity; i++)
+                {
+                    // Create a new instance for each quantity to track them individually
+                    allDesiredCutInstances.Add(new DesiredCut
+                    {
+                        Id = cutType.Id, // Keep original ID for grouping later if needed
+                        Length = cutType.Length,
+                        LengthUnit = cutType.LengthUnit,
+                        Quantity = 1 // We are expanding, so each instance is 1
+                    });
+                }
+            }
+
+            double totalRequestedLengthInches = allDesiredCutInstances.Sum(c => c.LengthInInches);
+            double totalAvailableLengthInches = availableBoardPieces.Sum(bp => bp.CurrentLengthInches);
+
+            // 3. Perform the cutting (Greedy First Fit Decreasing Height - FFDH variation)
+            foreach (var desiredCutInstance in allDesiredCutInstances)
+            {
+                double cutLengthInches = desiredCutInstance.LengthInInches;
+                BoardPiece? bestFitBoardPiece = null; // For Best Fit
+                BoardPiece? firstFitBoardPiece = null; // For First Fit
+
+                // Option 1: First Fit (from longest available piece that fits)
+                firstFitBoardPiece = availableBoardPieces
+                    .Where(bp => bp.CurrentLengthInches >= cutLengthInches)
+                    .OrderByDescending(bp => bp.CurrentLengthInches) // Try on longest boards first
+                    .FirstOrDefault();
+
+                // Option 2: Best Fit (minimizes immediate waste for this cut)
+                // bestFitBoardPiece = availableBoardPieces
+                //    .Where(bp => bp.CurrentLengthInches >= cutLengthInches)
+                //    .OrderBy(bp => bp.CurrentLengthInches - cutLengthInches) // Smallest leftover
+                //    .FirstOrDefault();
+
+                var boardToCutFrom = firstFitBoardPiece; // Choose strategy: firstFitBoardPiece or bestFitBoardPiece
+
+                if (boardToCutFrom != null)
+                {
+                    result.OptimizedCuts.Add(new OptimizedCut
+                    {
+                        OriginalDesiredCut = desiredCutInstance, // This is an instance
+                        QuantityToCut = 1, // We are processing individual cut instances
+                        SourceBoard = boardToCutFrom.OriginalBoard,
+                        SourceBoardOriginalIndex = boardToCutFrom.OriginalBoardIndex,
+                        CutLengthInches = cutLengthInches
+                    });
+                    boardToCutFrom.CurrentLengthInches -= cutLengthInches;
+                    boardToCutFrom.CutsMade.Add(new OptimizedCutDetail { DesiredCut = desiredCutInstance, LengthInches = cutLengthInches });
+                }
+                else
+                {
+                    result.AdditionalMaterialNeededInches += cutLengthInches; // This cut couldn't be made
+                }
+            }
+
+            // 4. Calculate results
+            if (result.AdditionalMaterialNeededInches > 0)
+            {
+                result.Message = $"Not enough material. Additional needed: {result.AdditionalMaterialNeededFormatted}.";
+            }
+            else
+            {
+                result.Message = "Optimization complete. All requested cuts planned.";
+            }
+
+            // Calculate total waste from used pieces
+            // Waste = Sum of (OriginalLength - Sum of CutsMadeFromIt) for all pieces that had cuts made
+            // Or, more simply for this greedy approach: Total initial length of pieces that were touched MINUS total length of useful cuts.
+            // This doesn't account for entire boards that were untouched.
+            double lengthOfUsedCuts = result.OptimizedCuts.Sum(oc => oc.CutLengthInches);
+            double originalLengthOfBoardsTouched = availableBoardPieces
+                .Where(bp => bp.CutsMade.Any())
+                .Sum(bp => bp.OriginalBoard.LengthInInches); // Sum of original lengths of pieces that were cut
+
+            if (result.AdditionalMaterialNeededInches == 0) // Only calculate waste if no extra material is needed
+            {
+                 // Total waste is the sum of all remaining small pieces on boards that were cut.
+                result.TotalWasteInches = availableBoardPieces
+                    .Where(bp => bp.CutsMade.Any()) // Only consider boards that were actually used
+                    .Sum(bp => bp.CurrentLengthInches); // The remaining length on these boards is waste
+            } else {
+                result.TotalWasteInches = 0; // If we need more material, current "waste" isn't the primary concern.
+            }
+
+
+            // Populate remaining boards (pieces with length > 0)
+            result.RemainingBoards = availableBoardPieces
+                .Where(bp => bp.CurrentLengthInches > 0.01) // Consider a small tolerance for "usable"
+                .Select(bp => new Board {
+                    Id = bp.OriginalBoard.Id, // Link back to original type
+                    Length = bp.CurrentLengthInches, // This is remaining length
+                    LengthUnit = "in", // It's in inches now
+                    Quantity = 1 // Each remaining piece is individual
+                })
+                .ToList();
+
+
+            // Consolidate OptimizedCuts for display if desired (e.g., group by desired cut type and source board type)
+            // The current display logic in the Razor page does some grouping.
+
+            return result;
+        }
+    }
+}
+
+
+Key changes and considerations for the algorithm:
+BoardPiece Class: Introduced to track individual pieces of boards, their current lengths, and the cuts made from them. This is crucial.
+Expanding Quantities: Both available boards and desired cuts are "expanded." If you have 5 boards of 12ft, you treat them as 5 individual 12ft pieces. If you need 10 cuts of 3ft, you process 10 individual requests for a 3ft cut.
+Sorting Cuts: Sorting desired cuts (e.g., longest first) is a common heuristic.
+Choosing a Board: The logic for selecting which BoardPiece to cut from (first fit, best fit) is central.
+Updating CurrentLengthInches: After a cut, the BoardPiece's length is reduced.
+Calculating Waste: True waste is complex. It's the sum of all leftover board segments that are too small for any remaining desired cuts (or just generally unusable). The current calculation is a simplification.
+Shortfall: If a cut can't be made, add its length to AdditionalMaterialNeededInches.
+Complexity: This is still a greedy algorithm. It might not find the absolute optimal solution but should give reasonable results for many cases. More advanced algorithms (like those based on linear programming or more complex heuristics) are out of scope for a basic tutorial but are good to be aware of.
+Testing the Algorithm:
+Manually create scenarios in your BoardOptimizer.cshtml page:
+Simple cases where everything fits perfectly.
+Cases where there's not enough wood.
+Cases with various board sizes and cut sizes.
+Cases with many small cuts and a few large boards.
+Verify the OptimizedCuts, AdditionalMaterialNeededInches, and TotalWasteInches.
+Checkpoint: The core logic for the optimizer should now be more functional. It will attempt to place cuts onto boards.
+Phase 6: Board-Cut Optimizer - Refining Results Display
+Goal: Ensure the results from the optimizer are clearly presented to the user.
+Review BoardOptimizer.cshtml (Results Section):
+The existing HTML for displaying results is a good start.
+Ensure CutPlanResult.OptimizedCuts is grouped or displayed logically. The current Razor code does a basic grouping.
+@* Example of how cuts are currently grouped in BoardOptimizer.cshtml *@
+@* This groups by the original desired cut's ID and the specific source board instance. *@
+@* You might want to further group by SourceBoard.OriginalBoard.Id if you want to say "3 cuts from Board Type 1 (12ft)" *@
+@foreach (var cutGroup in Model.CutResult.OptimizedCuts
+    .GroupBy(oc => new {
+        DesiredCutId = oc.OriginalDesiredCut.Id, // Group by the ID of the original DesiredCut type
+        DesiredCutDisplay = $"{oc.OriginalDesiredCut.Length} {oc.OriginalDesiredCut.LengthUnit}",
+        SourceBoardTypeInfo = $"Board Type {oc.SourceBoardOriginalIndex + 1} ({oc.SourceBoard.Length} {oc.SourceBoard.LengthUnit})",
+        SourceBoardInstanceId = result.OptimizedCuts.First(c => c.OriginalDesiredCut == oc.OriginalDesiredCut && c.SourceBoard == oc.SourceBoard).SourceBoardOriginalIndex // This part is tricky; need a unique ID for each physical board piece
+    }))
+{
+    <tr>
+        <td>@cutGroup.Key.DesiredCutDisplay (Req ID: @cutGroup.Key.DesiredCutId)</td>
+        <td>@cutGroup.Key.SourceBoardTypeInfo</td>
+        <td>@cutGroup.Count() cut(s)</td> @* Number of identical cuts from this specific source board type for this specific desired cut type *@
+        <td>@Services.UnitConverter.FormatInchesToFeetAndInches(cutGroup.First().CutLengthInches)</td>
+    </tr>
+}
+
+
+The display of RemainingBoards should list usable offcuts.
+Ensure messages about shortfalls or completion are clear.
+Improve CutPlanResult if needed:
+You might want to add more summary statistics or different ways to present the data. For example, a list of cuts that could not be fulfilled if there's a shortfall.
+Consider Edge Cases in Display:
+What if no cuts are possible?
+What if all boards are used up perfectly?
+What if user inputs no boards or no cuts? (The OnPost in BoardOptimizerModel has some basic handling).
+Checkpoint: The results display should be user-friendly and accurately reflect the output of your SimpleCuttingOptimizer.
+Phase 7: Integration and Styling
+Goal: Ensure the app looks reasonably good and is easy to navigate.
+Styling with Bootstrap:
+Your project already includes Bootstrap (typically via a CDN in _Layout.cshtml).
+Use Bootstrap classes (form-control, btn, table, alert, row, col-md-X, etc.) consistently for a clean layout. You've already been doing this.
+You can customize Bootstrap or add your own CSS in wwwroot/css/site.css.
+User Experience:
+Are the forms intuitive?
+Is the feedback clear (validation messages, results)?
+Is navigation straightforward?
+Error Handling:
+Besides form validation, consider what happens if unexpected errors occur in the optimizer. The current try-catch in UnitConverterModel is good. The optimizer doesn't have explicit try-catch for its internal logic, but ASP.NET Core's developer exception page (during development) or custom error pages (in production) will handle unhandled exceptions.
+Checkpoint: The application should be functionally complete and have a presentable UI.
+Phase 8: Testing
+Goal: Thoroughly test all aspects of the application.
+Unit Converter Testing:
+Test all supported unit conversions with various values (zero, positive, large).
+Test invalid inputs (non-numeric, missing values).
+Board Optimizer Testing:
+Input Validation:
+Non-numeric inputs, negative numbers, zero quantities/lengths.
+Exceeding the 20-row limit (JavaScript alert).
+Algorithm Logic (Critical):
+Scenario 1 (Perfect Fit): Available: 1x 10ft board. Desired: 2x 5ft cuts.
+Expected: 2 cuts from Board 1, 0 waste, 0 additional needed.
+Scenario 2 (Not Enough Material): Available: 1x 8ft board. Desired: 2x 5ft cuts.
+Expected: 1 cut from Board 1, 1 cut cannot be made. Additional needed: 2ft (or length of one 5ft cut if only one is partially made).
+Scenario 3 (Waste Generated): Available: 1x 10ft board. Desired: 3x 3ft cuts.
+Expected: 3 cuts from Board 1. Waste: 1ft.
+Scenario 4 (Multiple Boards, Multiple Cuts): Use your example:
+Available: Board 1 (12ft, Qty 5), Board 2 (6ft, Qty 2)
+Desired: Cut 1 (3ft, Qty 4), Cut 2 (5ft, Qty 5), Cut 3 (9in, Qty 20), Cut 4 (1ft, Qty 10)
+Verify the output matches your expected plan or is a reasonable alternative. Pay close attention to how cuts are assigned.
+Scenario 5 (Small pieces, large boards): Many small cuts from a few large boards.
+Scenario 6 (Large pieces, small boards): Attempting large cuts from many small boards (should result in high "additional needed").
+UI Testing:
+Adding/removing rows for boards and cuts.
+Correct display of results, including messages, waste, and needed material.
+Cross-Browser Testing (Basic):
+Check if it works reasonably in major browsers (Chrome, Firefox, Edge).
+Checkpoint: You should have high confidence in the application's correctness and robustness.
+Phase 9: Deployment to Azure App Service (Free Tier)
+Goal: Make your application accessible on the web.
+Azure Portal Setup:
+Go to the Azure portal.
+Click "+ Create a resource."
+Search for "Web App" and select it. Click "Create."
+Subscription: Your Azure subscription.
+Resource Group: Create a new one (e.g., LumberOptimizerResources) or use an existing one.
+Name: Choose a unique name for your app (e.g., yourname-lumberoptimizer). This will be part of the URL (yourname-lumberoptimizer.azurewebsites.net).
+Publish: Code.
+Runtime stack: .NET 8 (or 7, matching your project).
+Operating System: Windows (often simpler for .NET) or Linux.
+Region: Choose a region close to you or your users.
+App Service Plan:
+Click "Create new" if you don't have one.
+Pricing tier: Select "Dev/Test" -> "Free (F1)" for the free tier. (Note limitations of the free tier, e.g., no custom domains, limited resources).
+Click "Review + create," then "Create."
+Publishing from Visual Studio:
+In Visual Studio, right-click your project in Solution Explorer.
+Select "Publish."
+Target: Azure. Click "Next."
+Specific target: Azure App Service (Windows) or (Linux), matching your App Service. Click "Next."
+Sign in to your Azure account if prompted.
+Select your subscription and the App Service instance you created.
+Click "Finish."
+The publish profile will be created. Click "Publish" in the profile summary screen.
+Visual Studio will build and deploy your app. Your browser should open to the deployed app's URL.
+Alternative: CI/CD (More Advanced):
+For more robust deployments, consider setting up CI/CD with Azure DevOps or GitHub Actions. This automatically builds and deploys your app when you push changes to your code repository.
+Testing on Azure:
+Thoroughly test your deployed application.
+Checkpoint: Your Lumber Optimizer web app is live on Azure!
+This detailed plan should give you a solid roadmap. Remember that the cutting algorithm (Phase 5) is the most complex part from a logic perspective. Start simple and iterate. Don't hesitate to ask if you get stuck on a particular step or concept! Good luck, this will be a very rewarding project!
