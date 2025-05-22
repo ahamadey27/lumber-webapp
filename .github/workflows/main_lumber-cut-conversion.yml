@@ -24,10 +24,14 @@ jobs:
           dotnet-version: '9.x'
 
       - name: Build with dotnet
-        run: dotnet build lumber-app/lumber-app.csproj --configuration Release
+        run: |
+          cd lumber-app
+          dotnet build lumber-app.csproj --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish lumber-app/lumber-app.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: |
+          cd lumber-app
+          dotnet publish lumber-app.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
