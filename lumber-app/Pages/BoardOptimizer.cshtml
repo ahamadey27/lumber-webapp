@@ -1,5 +1,6 @@
 @page
 @model lumber_app.Pages.BoardOptimizerModel
+@using lumber_app.Services
 @{
     ViewData["Title"] = "Board Cut Optimizer";
 }
@@ -108,25 +109,24 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var cut in Model.CutResult.OptimizedCuts.GroupBy(oc => new
+                @foreach (var cutGroup in Model.CutResult.OptimizedCuts.GroupBy(oc => new
                 {
                     oc.OriginalDesiredCut.Id,
-                    SourceBoardId = oc.SourceBoard.Id, // Renamed to avoid conflict
-                    oc.SourceBoardOriginalIndex
+                    SourceBoardId = oc.SourceBoard.Id,
+                    oc.SourceBoardOriginalIndex,
+                    OriginalDesiredLength = oc.OriginalDesiredCut.length, // Store for display
+                    OriginalDesiredUnit = oc.OriginalDesiredCut.LengthUnit, // Store for display
+                    SourceBoardLength = oc.SourceBoard.Length, // Store for display
+                    SourceBoardUnit = oc.SourceBoard.LengthUnit // Store for display
                 }))
                 {
-                    var firstCut = cut.First();
+                    var firstCutInGroup = cutGroup.First();
                     <tr>
-                        <td>@(firstCut.OriginalDesiredCut.length) @firstCut.OriginalDesiredCut.LengthUnit (ID:
-                            @firstCut.OriginalDesiredCut.Id)</td>
-                        <td>Board Type @(Model.AvailableBoards.IndexOf(Model.AvailableBoards.Find(b => b.Id ==
-                                            firstCut.SourceBoard.Id && Model.AvailableBoards.IndexOf(b) == firstCut.SourceBoardOriginalIndex) ??
-                                            firstCut.SourceBoard) + 1)
-                (@firstCut.SourceBoard.Length @firstCut.SourceBoard.LengthUnit)
-            </td>
-            <td>@cut.Count()</td>
-            <td>@Services.UnitConverter.FormatInchesToFeetAndInches(firstCut.CutLengthInches)</td>
-        </tr>
+                        <td>@($"{cutGroup.Key.OriginalDesiredLength} {cutGroup.Key.OriginalDesiredUnit} (ID: {cutGroup.Key.Id})")</td>
+                        <td>@($"Board Type {cutGroup.Key.SourceBoardOriginalIndex + 1} ({cutGroup.Key.SourceBoardLength} {cutGroup.Key.SourceBoardUnit})")</td>
+                        <td>@cutGroup.Count()</td>
+                        <td>@UnitConverter.FormatInchesToFeetAndInches(firstCutInGroup.CutLengthInches)</td>
+                    </tr>
                 }
             </tbody>
         </table>
@@ -144,7 +144,7 @@
         <ul>
             @foreach (var board in Model.CutResult.RemainingBoards)
             {
-                <li>Board (Original Type @board.Id): @Services.UnitConverter.FormatInchesToFeetAndInches(board.LengthInInches)
+                <li>Board (Original Type @board.Id): @UnitConverter.FormatInchesToFeetAndInches(board.LengthInInches)
                     remaining</li>
             }
         </ul>
