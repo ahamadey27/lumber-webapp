@@ -23,13 +23,17 @@ jobs:
         with:
           dotnet-version: '9.x'
 
+      - name: List files in working directory (lumber-app)
+        working-directory: lumber-app
+        run: Get-ChildItem # PowerShell command to list files and directories
+
       - name: Build with dotnet
         working-directory: lumber-app
-        run: dotnet build --configuration Release # Rely on auto-detection in working-directory
+        run: dotnet build lumber-app.sln --configuration Release
 
       - name: dotnet publish
         working-directory: lumber-app
-        run: dotnet publish --configuration Release -o "${{env.DOTNET_ROOT}}/myapp" # Rely on auto-detection
+        run: dotnet publish lumber-app.csproj --configuration Release -o "${{env.DOTNET_ROOT}}/myapp"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
