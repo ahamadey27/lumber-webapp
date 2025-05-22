@@ -1,7 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# TEST
-
 name: Build and deploy ASP.Net Core app to Azure Web App - lumber-cut-conversion
 
 on:
@@ -14,7 +10,7 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +29,7 @@ jobs:
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
+          name: net-app
           path: ${{ github.workspace }}/myapp
 
   deploy:
@@ -42,18 +38,19 @@ jobs:
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    
+
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
-      
+          name: net-app
+          path: ./net-app # Download to a known folder
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'lumber-cut-conversion'
           slot-name: 'Production'
-          package: .
+          package: ./net-app # Deploy from the downloaded artifact folder
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_4EEA6B7E9F8F4655988F8A5F9DFCC8D3 }}
