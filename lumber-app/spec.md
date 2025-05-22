@@ -85,23 +85,23 @@
 # Development Plan
 
 ## Phase 1: Project Setup & Core Models
-- [ ] Install .NET SDK and choose IDE.
-- [ ] Sign up for a free Azure account.
-- [ ] Create ASP.NET Core Razor Pages Project (`LumberOptimizerWeb`).
-- [ ] Define Core Models:
+- [x] Install .NET SDK and choose IDE.
+- [x] Sign up for a free Azure account.
+- [x] Create ASP.NET Core Razor Pages Project (`LumberOptimizerWeb`).
+- [x] Define Core Models:
     - [ ] `Models/Board.cs`
     - [ ] `Models/DesiredCut.cs`
-- [ ] Create placeholder `Services/UnitConverter.cs`.
-- [ ] Review basic project structure (`Pages`, `wwwroot`, `Program.cs`).
+- [x] Create placeholder `Services/UnitConverter.cs`.
+- [x] Review basic project structure (`Pages`, `wwwroot`, `Program.cs`).
 
 ## Phase 2: Unit Converter Feature
-- [ ] Create Razor Page `Pages/UnitConverter.cshtml` (and `.cs`).
-- [ ] Design Unit Converter UI in `UnitConverter.cshtml`.
-- [ ] Implement logic in `UnitConverter.cshtml.cs` PageModel, utilizing `Services.UnitConverter`.
-    - [ ] Include properties for `InputValue`, `FromUnit`, `ToUnit`, `Result`, `ErrorMessage`.
-    - [ ] Populate `AvailableUnits` (SelectListItem).
-    - [ ] Implement `OnGet()` and `OnPost()` handlers.
-- [ ] Add navigation link to Unit Converter in `Pages/Shared/_Layout.cshtml`.
+- [x] Create Razor Page `Pages/UnitConverter.cshtml` (and `.cs`).
+- [x] Design Unit Converter UI in `UnitConverter.cshtml`.
+- [x] Implement logic in `UnitConverter.cshtml.cs` PageModel, utilizing `Services.UnitConverter`.
+    - [x] Include properties for `InputValue`, `FromUnit`, `ToUnit`, `Result`, `ErrorMessage`.
+    - [x] Populate `AvailableUnits` (SelectListItem).
+    - [x] Implement `OnGet()` and `OnPost()` handlers.
+- [x] Add navigation link to Unit Converter in `Pages/Shared/_Layout.cshtml`.
 
 ## Phase 3: Board-Cut Optimizer - Service Interface & Data Structures
 - [ ] Define `Services/ICuttingOptimizer.cs` interface and supporting classes:

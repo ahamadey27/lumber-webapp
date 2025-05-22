@@ -9,7 +9,7 @@ namespace lumber_app.Services
 
         public static double ConvertToInches(double value, string unit)
         {
-            return unit.ToLower()
+            double result = unit.ToLower()
             switch
             {
                 "ft" or "feet" or "'" => value * InchesPerFoot,
@@ -18,11 +18,12 @@ namespace lumber_app.Services
                 "cm" or "centimeters" => value * InchesPerCentimeter,
                 _ => throw new ArgumentException("Unsupported unit for conversion to inches.")
             };
+            return Math.Round(result, 2);
         }
 
         public static double ConvertFromInches(double inches, string targetUnit)
         {
-            return targetUnit.ToLower()
+            double result = targetUnit.ToLower()
             switch
             {
 
@@ -33,6 +34,7 @@ namespace lumber_app.Services
                 _ => throw new ArgumentException("Unsupported unit for conversion from inches.")
 
             };
+            return Math.Round(result, 2);
         }
 
         //Add more conversions as needed 

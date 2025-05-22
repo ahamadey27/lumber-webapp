@@ -1,3 +1,5 @@
+using lumber_app.Services;
+
 namespace lumber_app.Models
 {
     public class Board
