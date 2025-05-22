@@ -107,8 +107,8 @@
 - [x] Define `Services/ICuttingOptimizer.cs` interface and supporting classes:
     - [x] `CutPlanResult` class.
     - [x] `OptimizedCut` class.
-- [ ] Create a basic implementation `Services/SimpleCuttingOptimizer.cs` (initial placeholder logic).
-- [ ] Register the `ICuttingOptimizer` service in `Program.cs` (`builder.Services.AddScoped<ICuttingOptimizer, SimpleCuttingOptimizer>();`).
+- [x] Create a basic implementation `Services/SimpleCuttingOptimizer.cs` (initial placeholder logic).
+- [x] Register the `ICuttingOptimizer` service in `Program.cs` (`builder.Services.AddScoped<ICuttingOptimizer, SimpleCuttingOptimizer>();`).
 
 ## Phase 4: Board-Cut Optimizer - UI for Input
 - [ ] Create Razor Page `Pages/BoardOptimizer.cshtml` (and `.cs`).

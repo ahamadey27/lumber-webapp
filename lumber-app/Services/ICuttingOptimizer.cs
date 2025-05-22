@@ -25,6 +25,7 @@ namespace lumber_app.Services
         public Board SourceBoard { get; set; } = new Board(); //Takes board from models and makes new object 
         public int SourceBoardOriginalIndex { get; set; } // To identify original board if multiple are identical
         public double CutLengthToInches { get; set; }
+        //public double CutLengthInches { get; internal set; }
     }
 
     public interface ICuttingOptimizer

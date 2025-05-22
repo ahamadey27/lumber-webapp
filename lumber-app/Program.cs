@@ -1,9 +1,9 @@
+using lumber_app.Services; // Add this using
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
-
-using LumberOptimizerWeb.Services; // Add this using
 
 // ... other services
 builder.Services.AddScoped<ICuttingOptimizer, SimpleCuttingOptimizer>();
