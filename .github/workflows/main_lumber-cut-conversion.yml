@@ -23,16 +23,24 @@ jobs:
         with:
           dotnet-version: '9.x'
 
-      - name: List files in working directory (lumber-app)
-        working-directory: lumber-app
-        run: Get-ChildItem # PowerShell command to list files and directories
+      - name: Display GITHUB_WORKSPACE content (root)
+        run: Get-ChildItem -Path ${{ github.workspace }} -Recurse -Force
+        shell: pwsh
+
+      - name: Display content of lumber-app directory
+        working-directory: lumber-app # This should be GITHUB_WORKSPACE/lumber-app
+        run: Get-ChildItem -Recurse -Force
+        shell: pwsh
 
       - name: Build with dotnet
-        working-directory: lumber-app
-        run: dotnet build lumber-app.sln --configuration Release
+        working-directory: lumber-app # Execute in GITHUB_WORKSPACE/lumber-app
+        # Attempt to build the solution file if present, or a project file.
+        # If lumber-app.sln is in this directory, it should be picked up.
+        run: dotnet build --configuration Release
 
       - name: dotnet publish
-        working-directory: lumber-app
+        working-directory: lumber-app # Execute in GITHUB_WORKSPACE/lumber-app
+        # Explicitly publish the project file.
         run: dotnet publish lumber-app.csproj --configuration Release -o "${{env.DOTNET_ROOT}}/myapp"
 
       - name: Upload artifact for deployment job
