@@ -1,0 +1,267 @@
+@page
+@model lumber_app.Pages.BoardOptimizerModel
+@{
+    ViewData["Title"] = "Board Cut Optimizer";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<form method="post" id="optimizerForm">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h3>Available Boards</h3>
+            <div id="availableBoardsContainer">
+                @for (int i = 0; i < Model.AvailableBoards.Count; i++)
+                {
+                    <div class="row g-3 align-items-center mb-2 board-entry">
+                        <input type="hidden" asp-for="AvailableBoards[i].Id" />
+                        <div class="col-auto">
+                            <label class="col-form-label">Board @(i + 1):</label>
+                        </div>
+                        <div class="col">
+                            <input asp-for="AvailableBoards[i].Length" class="form-control" placeholder="Length" />
+                            <span asp-validation-for="AvailableBoards[i].Length" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <select asp-for="AvailableBoards[i].LengthUnit" asp-items="Model.AvailableUnits"
+                                class="form-select"></select>
+                        </div>
+                        <div class="col">
+                            <input asp-for="AvailableBoards[i].Quantity" class="form-control" placeholder="Qty" />
+                            <span asp-validation-for="AvailableBoards[i].Quantity" class="text-danger"></span>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-sm btn-danger remove-board"
+                                onclick="removeRow(this, 'board')">X</button>
+                        </div>
+                    </div>
+                }
+            </div>
+            <button type="button" id="addBoard" class="btn btn-sm btn-success mt-2 mb-3">+ Add Board</button>
+        </div>
+
+        <div class="col-md-6">
+            <h3>Desired Cuts</h3>
+            <div id="desiredCutsContainer">
+                @for (int i = 0; i < Model.DesiredCuts.Count; i++)
+                {
+                    <div class="row g-3 align-items-center mb-2 cut-entry">
+                        <input type="hidden" asp-for="DesiredCuts[i].Id" />
+                        <div class="col-auto">
+                            <label class="col-form-label">Cut @(i + 1):</label>
+                        </div>
+                        <div class="col">
+                            <input asp-for="DesiredCuts[i].length" class="form-control" placeholder="Length" />
+                            <span asp-validation-for="DesiredCuts[i].length" class="text-danger"></span>
+                        </div>
+                        <div class="col">
+                            <select asp-for="DesiredCuts[i].LengthUnit" asp-items="Model.AvailableUnits"
+                                class="form-select"></select>
+                        </div>
+                        <div class="col">
+                            <input asp-for="DesiredCuts[i].Quantity" class="form-control" placeholder="Qty" />
+                            <span asp-validation-for="DesiredCuts[i].Quantity" class="text-danger"></span>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-sm btn-danger remove-cut"
+                                onclick="removeRow(this, 'cut')">X</button>
+                        </div>
+                    </div>
+                }
+            </div>
+            <button type="button" id="addCut" class="btn btn-sm btn-success mt-2 mb-3">+ Add Cut</button>
+        </div>
+    </div>
+
+    <hr />
+    <button type="submit" class="btn btn-primary btn-lg">Optimize Cuts</button>
+</form>
+
+@if (Model.CutResult != null)
+{
+    <h3 class="mt-4">Optimization Results</h3>
+    <div class="alert @(Model.CutResult.AdditionalMaterialNeededInches > 0 ? "alert-warning" : "alert-success")">
+        <p><strong>@Model.CutResult.Message</strong></p>
+        @if (Model.CutResult.AdditionalMaterialNeededInches > 0)
+        {
+            <p>Additional Material Needed: <strong>@Model.CutResult.AdditionalMaterialNeededFormatted</strong></p>
+        }
+        else
+        {
+            <p>Estimated Total Waste (from used boards): <strong>@Model.CutResult.TotalWasteFormatted</strong> (this is a rough
+                estimate)</p>
+        }
+    </div>
+
+    @if (Model.CutResult.OptimizedCuts.Any())
+    {
+        <h4>Cutting Plan:</h4>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Desired Cut</th>
+                    <th>Source Board (Original Type)</th>
+                    <th>Quantity from this Source</th>
+                    <th>Cut Length</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var cut in Model.CutResult.OptimizedCuts.GroupBy(oc => new
+                {
+                    oc.OriginalDesiredCut.Id,
+                    SourceBoardId = oc.SourceBoard.Id, // Renamed to avoid conflict
+                    oc.SourceBoardOriginalIndex
+                }))
+                {
+                    var firstCut = cut.First();
+                    <tr>
+                        <td>@(firstCut.OriginalDesiredCut.length) @firstCut.OriginalDesiredCut.LengthUnit (ID:
+                            @firstCut.OriginalDesiredCut.Id)</td>
+                        <td>Board Type @(Model.AvailableBoards.IndexOf(Model.AvailableBoards.Find(b => b.Id ==
+                                            firstCut.SourceBoard.Id && Model.AvailableBoards.IndexOf(b) == firstCut.SourceBoardOriginalIndex) ??
+                                            firstCut.SourceBoard) + 1)
+                (@firstCut.SourceBoard.Length @firstCut.SourceBoard.LengthUnit)
+            </td>
+            <td>@cut.Count()</td>
+            <td>@Services.UnitConverter.FormatInchesToFeetAndInches(firstCut.CutLengthInches)</td>
+        </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (Model.CutResult.AdditionalMaterialNeededInches == 0 && !Model.CutResult.OptimizedCuts.Any() &&
+    Model.DesiredCuts.Any())
+    {
+        <p>No cuts were planned. Check algorithm logic if cuts were expected.</p>
+    }
+
+
+    @if (Model.CutResult.RemainingBoards.Any())
+    {
+        <h4>Remaining Board Pieces (Potential Usable Offcuts):</h4>
+        <ul>
+            @foreach (var board in Model.CutResult.RemainingBoards)
+            {
+                <li>Board (Original Type @board.Id): @Services.UnitConverter.FormatInchesToFeetAndInches(board.LengthInInches)
+                    remaining</li>
+            }
+        </ul>
+    }
+}
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let boardCounter = @Model.AvailableBoards.Count;
+        let cutCounter = @Model.DesiredCuts.Count;
+        const maxEntries = 20;
+
+        document.getElementById('addBoard').addEventListener('click', function () {
+            if (document.querySelectorAll('#availableBoardsContainer .board-entry').length >= maxEntries) {
+                alert('Maximum of ' + maxEntries + ' board types reached.');
+                return;
+            }
+            const container = document.getElementById('availableBoardsContainer');
+            const newIndex = document.querySelectorAll('#availableBoardsContainer .board-entry').length; // Dynamic index
+            const newEntry = `
+                    <div class="row g-3 align-items-center mb-2 board-entry">
+                        <input type="hidden" name="AvailableBoards[${newIndex}].Id" value="${newIndex + 1000}" /> <div class="col-auto"><label class="col-form-label">Board ${newIndex + 1}:</label></div>
+                        <div class="col"><input type="number" step="any" class="form-control" name="AvailableBoards[${newIndex}].Length" placeholder="Length" /></div>
+                        <div class="col">
+                            <select class="form-select" name="AvailableBoards[${newIndex}].LengthUnit">
+                                @foreach (var unit in Model.AvailableUnits)
+                                {
+                                    <option value="@unit.Value">@unit.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col"><input type="number" class="form-control" name="AvailableBoards[${newIndex}].Quantity" placeholder="Qty" /></div>
+                        <div class="col-auto"><button type="button" class="btn btn-sm btn-danger remove-board" onclick="removeRow(this, 'board')">X</button></div>
+                    </div>`;
+            container.insertAdjacentHTML('beforeend', newEntry);
+            // Re-parse form validation for dynamically added elements (if using client-side jQuery unobtrusive validation)
+            // var form = $("#optimizerForm");
+            // form.removeData('validator');
+            // form.removeData('unobtrusiveValidation');
+            // $.validator.unobtrusive.parse(form);
+        });
+
+        document.getElementById('addCut').addEventListener('click', function () {
+            if (document.querySelectorAll('#desiredCutsContainer .cut-entry').length >= maxEntries) {
+                alert('Maximum of ' + maxEntries + ' cut types reached.');
+                return;
+            }
+            const container = document.getElementById('desiredCutsContainer');
+            const newIndex = document.querySelectorAll('#desiredCutsContainer .cut-entry').length; // Dynamic index
+            const newEntry = `
+                    <div class="row g-3 align-items-center mb-2 cut-entry">
+                         <input type="hidden" name="DesiredCuts[${newIndex}].Id" value="${newIndex + 2000}" /> <div class="col-auto"><label class="col-form-label">Cut ${newIndex + 1}:</label></div>
+                        <div class="col"><input type="number" step="any" class="form-control" name="DesiredCuts[${newIndex}].Length" placeholder="Length" /></div>
+                        <div class="col">
+                            <select class="form-select" name="DesiredCuts[${newIndex}].LengthUnit">
+                                @foreach (var unit in Model.AvailableUnits)
+                                {
+                                    <option value="@unit.Value">@unit.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col"><input type="number" class="form-control" name="DesiredCuts[${newIndex}].Quantity" placeholder="Qty" /></div>
+                        <div class="col-auto"><button type="button" class="btn btn-sm btn-danger remove-cut" onclick="removeRow(this, 'cut')">X</button></div>
+                    </div>`;
+            container.insertAdjacentHTML('beforeend', newEntry);
+        });
+
+        function removeRow(button, type) {
+            button.closest(type === 'board' ? '.board-entry' : '.cut-entry').remove();
+            reindexRows(type);
+        }
+
+        function reindexRows(type) {
+            const containerId = type === 'board' ? 'availableBoardsContainer' : 'desiredCutsContainer';
+            const entryClass = type === 'board' ? '.board-entry' : '.cut-entry';
+            const prefix = type === 'board' ? 'AvailableBoards' : 'DesiredCuts';
+            const labelPrefixText = type === 'board' ? 'Board' : 'Cut';
+
+            document.querySelectorAll(`#${containerId} ${entryClass}`).forEach((entry, idx) => {
+                // Update label
+                entry.querySelector('label.col-form-label').textContent = `${labelPrefixText} ${idx + 1}:`;
+
+                // Update input and select names
+                entry.querySelectorAll('input, select').forEach(inputElement => {
+                    const oldName = inputElement.getAttribute('name');
+                    if (oldName) {
+                        const newName = oldName.replace(new RegExp(`${prefix}\\[\\d+\\]`), `${prefix}[${idx}]`);
+                        inputElement.setAttribute('name', newName);
+                        // If using asp-for, the id might also need updating for client-side validation, though less critical for submission
+                        const oldId = inputElement.getAttribute('id');
+                        if (oldId) {
+                             const newId = oldId.replace(new RegExp(`${prefix}_\\d+__`), `${prefix}_${idx}__`);
+                             inputElement.setAttribute('id', newId);
+                        }
+                    }
+                });
+                 // Update validation message 'data-valmsg-for'
+                entry.querySelectorAll('span[data-valmsg-for]').forEach(spanElement => {
+                    const oldFor = spanElement.getAttribute('data-valmsg-for');
+                    if (oldFor) {
+                        const newFor = oldFor.replace(new RegExp(`${prefix}\\[\\d+\\]`), `${prefix}[${idx}]`);
+                        spanElement.setAttribute('data-valmsg-for', newFor);
+                    }
+                });
+            });
+        }
+
+        // Initialize with one empty row if model lists are empty on first load
+        document.addEventListener('DOMContentLoaded', function () {
+            if (document.querySelectorAll('#availableBoardsContainer .board-entry').length === 0) {
+                document.getElementById('addBoard').click();
+            }
+            if (document.querySelectorAll('#desiredCutsContainer .cut-entry').length === 0) {
+                document.getElementById('addCut').click();
+            }
+        });
+    </script>
+}

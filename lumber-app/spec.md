@@ -111,38 +111,38 @@
 - [x] Register the `ICuttingOptimizer` service in `Program.cs` (`builder.Services.AddScoped<ICuttingOptimizer, SimpleCuttingOptimizer>();`).
 
 ## Phase 4: Board-Cut Optimizer - UI for Input
-- [ ] Create Razor Page `Pages/BoardOptimizer.cshtml` (and `.cs`).
-- [ ] Design Optimizer Input UI in `BoardOptimizer.cshtml`:
-    - [ ] Form for `AvailableBoards` with dynamic row adding/removing (Length, Unit, Quantity).
-    - [ ] Form for `DesiredCuts` with dynamic row adding/removing (Length, Unit, Quantity).
-    - [ ] Section to display `CutResult` (Message, Additional Material, Waste, Cutting Plan table, Remaining Boards list).
-- [ ] Implement JavaScript for dynamic row adding/removing in `@section Scripts`.
-- [ ] Implement logic in `BoardOptimizer.cshtml.cs` PageModel:
-    - [ ] Inject `ICuttingOptimizer`.
-    - [ ] Bind properties for `AvailableBoards` (List<Board>), `DesiredCuts` (List<DesiredCut>).
-    - [ ] Property for `CutResult` (CutPlanResult).
-    - [ ] Populate `AvailableUnits` (SelectListItem).
-    - [ ] Implement `OnGet()` (initialize with empty rows if needed).
-    - [ ] Implement `OnPost()` to call the optimizer service and handle results/validation.
-- [ ] Add navigation link to Board Optimizer in `Pages/Shared/_Layout.cshtml`.
+- [x] Create Razor Page `Pages/BoardOptimizer.cshtml` (and `.cs`).
+- [x] Design Optimizer Input UI in `BoardOptimizer.cshtml`:
+    - [x] Form for `AvailableBoards` with dynamic row adding/removing (Length, Unit, Quantity).
+    - [x] Form for `DesiredCuts` with dynamic row adding/removing (Length, Unit, Quantity).
+    - [x] Section to display `CutResult` (Message, Additional Material, Waste, Cutting Plan table, Remaining Boards list).
+- [x] Implement JavaScript for dynamic row adding/removing in `@section Scripts`.
+- [x] Implement logic in `BoardOptimizer.cshtml.cs` PageModel:
+    - [x] Inject `ICuttingOptimizer`.
+    - [x] Bind properties for `AvailableBoards` (List<Board>), `DesiredCuts` (List<DesiredCut>).
+    - [x] Property for `CutResult` (CutPlanResult).
+    - [x] Populate `AvailableUnits` (SelectListItem).
+    - [x] Implement `OnGet()` (initialize with empty rows if needed).
+    - [x] Implement `OnPost()` to call the optimizer service and handle results/validation.
+- [x] Add navigation link to Board Optimizer in `Pages/Shared/_Layout.cshtml`.
 
 ## Phase 5: Board-Cut Optimizer - Algorithm Implementation (Core Logic)
-- [ ] Refine `Services/SimpleCuttingOptimizer.cs` with a more functional cutting algorithm (e.g., First Fit Decreasing Height variation).
-    - [ ] Introduce internal helper classes if needed (e.g., `BoardPiece`, `OptimizedCutDetail`).
-    - [ ] Standardize units to inches for calculations.
-    - [ ] Expand board and cut quantities into individual instances.
-    - [ ] Sort desired cuts (e.g., by length descending).
-    - [ ] Iterate through cuts and find suitable available board pieces.
-    - [ ] Update remaining lengths of board pieces.
-    - [ ] Track waste and shortfall accurately.
-    - [ ] Populate `CutPlanResult` with detailed `OptimizedCuts`, `RemainingBoards`, `TotalWasteInches`, and `AdditionalMaterialNeededInches`.
+- [x] Refine `Services/SimpleCuttingOptimizer.cs` with a more functional cutting algorithm (e.g., First Fit Decreasing Height variation).
+    - [x] Introduce internal helper classes if needed (e.g., `BoardPiece`, `OptimizedCutDetail`).
+    - [x] Standardize units to inches for calculations.
+    - [x] Expand board and cut quantities into individual instances.
+    - [x] Sort desired cuts (e.g., by length descending).
+    - [x] Iterate through cuts and find suitable available board pieces.
+    - [x] Update remaining lengths of board pieces.
+    - [x] Track waste and shortfall accurately.
+    - [x] Populate `CutPlanResult` with detailed `OptimizedCuts`, `RemainingBoards`, `TotalWasteInches`, and `AdditionalMaterialNeededInches`.
 
 ## Phase 6: Board-Cut Optimizer - Refining Results Display
-- [ ] Review and enhance the results display section in `BoardOptimizer.cshtml`.
-- [ ] Ensure `CutPlanResult.OptimizedCuts` are presented clearly, possibly grouped.
-- [ ] Ensure `CutPlanResult.RemainingBoards` lists usable offcuts effectively.
-- [ ] Verify messages for shortfalls, completion, and errors are user-friendly.
-- [ ] Consider edge cases in display (no cuts possible, perfect fit, no inputs).
+- [x] Review and enhance the results display section in `BoardOptimizer.cshtml`.
+- [x] Ensure `CutPlanResult.OptimizedCuts` are presented clearly, possibly grouped.
+- [x] Ensure `CutPlanResult.RemainingBoards` lists usable offcuts effectively.
+- [x] Verify messages for shortfalls, completion, and errors are user-friendly.
+- [x] Consider edge cases in display (no cuts possible, perfect fit, no inputs).
 
 ## Phase 7: Integration and Styling
 - [ ] Ensure consistent styling using Bootstrap classes.

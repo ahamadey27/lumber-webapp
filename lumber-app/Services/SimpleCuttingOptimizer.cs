@@ -4,126 +4,159 @@ using System.Linq;
 
 namespace lumber_app.Services
 {
+    // Represents a piece of an available board, its current length, and cuts made from it.
+    public class BoardPiece
+    {
+        public Board OriginalBoard { get; }
+        public int OriginalBoardIndex { get; } // Index in the initial list of board types
+        public int PieceInstanceId { get; } // Unique ID for this specific piece (e.g. if BoardType1 has Qty 5, there are 5 pieces)
+        public double CurrentLengthInches { get; set; }
+        public List<OptimizedCutDetail> CutsMade { get; } = new List<OptimizedCutDetail>();
+
+        public BoardPiece(Board originalBoard, int originalBoardIndex, double initialLengthInches, int pieceInstanceId)
+        {
+            OriginalBoard = originalBoard;
+            OriginalBoardIndex = originalBoardIndex;
+            CurrentLengthInches = initialLengthInches;
+            PieceInstanceId = pieceInstanceId;
+        }
+    }
+
+    public class OptimizedCutDetail // More detailed than the result one for internal tracking
+    {
+        public DesiredCut DesiredCut { get; set; } = new DesiredCut();
+        public double LengthInches { get; set; }
+    }
+
+
     public class SimpleCuttingOptimizer : ICuttingOptimizer
     {
         public CutPlanResult OptimizeCuts(
-            List<Board> availableBoards,
-            List<DesiredCut> desiredCuts)
+            List<Board> availableBoardTypes, // Renamed for clarity
+            List<DesiredCut> desiredCutTypes) // Renamed for clarity
         {
             var result = new CutPlanResult();
-            // --- Initial Setup ---
-            // Convert all board lengths to inches and expand quantities
-            var allAvailableBoardPieces = new List<(Board originalBoard, int originalIndex, double lengthInches, int pieceId)>();
-            int boardIdx = 0;
-            int pieceCounter = 0;
-            foreach (var board in availableBoards)
-            {
-                for (int i = 0; i < board.Quantity; i++)
-                {
-                    allAvailableBoardPieces.Add((board, boardIdx, board.LengthInInches, pieceCounter++));
-                }
-                boardIdx++;
-            }
 
-            // Convert all desired cut lengths to inches and sort by length (descending often good for greedy)
-            // Also expand quantities
-            var allDesiredCutPieces = new List<(DesiredCut originalCut, double lengthInches, int cutId)>();
-            int cutIdx = 0;
-            foreach (var cut in desiredCuts.OrderByDescending(c => c.LengthInInches))
+            // 1. Expand available boards by quantity and convert to inches
+            var availableBoardPieces = new List<BoardPiece>();
+            int pieceInstanceCounter = 0;
+            for (int i = 0; i < availableBoardTypes.Count; i++)
             {
-                for (int i = 0; i < cut.Quantity; i++)
+                var boardType = availableBoardTypes[i];
+                for (int j = 0; j < boardType.Quantity; j++)
                 {
-                    allDesiredCutPieces.Add((cut, cut.LengthInInches, cutIdx++));
+                    availableBoardPieces.Add(new BoardPiece(boardType, i, boardType.LengthInInches, pieceInstanceCounter++));
                 }
             }
 
-            // --- Simple Greedy Algorithm (First Fit Decreasing Height) ---
-            // This is a basic example. More sophisticated algorithms exist (e.g., bin packing variations).
-            var tempBoardPieces = allAvailableBoardPieces.Select(b => new
+            // 2. Expand desired cuts by quantity, convert to inches, and sort (e.g., by length descending)
+            var allDesiredCutInstances = new List<DesiredCut>();
+            foreach (var cutType in desiredCutTypes.OrderByDescending(c => c.LengthInInches))
             {
-                b.originalBoard,
-                b.originalIndex,
-                CurrentLengthInches = b.lengthInches,
-                b.pieceId,
-                CutsMade = new List<OptimizedCut>()
-            }).ToList();
+                for (int i = 0; i < cutType.Quantity; i++)
+                {
+                    // Create a new instance for each quantity to track them individually
+                    allDesiredCutInstances.Add(new DesiredCut
+                    {
+                        Id = cutType.Id, // Keep original ID for grouping later if needed
+                        length = cutType.length, // Corrected from Length to length
+                        LengthUnit = cutType.LengthUnit,
+                        Quantity = 1 // We are expanding, so each instance is 1
+                    });
+                }
+            }
 
-            double totalDesiredLength = allDesiredCutPieces.Sum(c => c.lengthInches);
-            double totalAvailableLength = allAvailableBoardPieces.Sum(b => b.lengthInches);
-            result.AdditionalMaterialNeededInches = Math.Max(0, totalDesiredLength - totalAvailableLength);
+            double totalRequestedLengthInches = allDesiredCutInstances.Sum(c => c.LengthInInches);
+            double totalAvailableLengthInches = availableBoardPieces.Sum(bp => bp.CurrentLengthInches);
 
-            int desiredCutsFulfilled = 0;
-
-            foreach (var desiredCutItem in allDesiredCutPieces)
+            // 3. Perform the cutting (Greedy First Fit Decreasing Height - FFDH variation)
+            foreach (var desiredCutInstance in allDesiredCutInstances)
             {
-                bool cutMade = false;
-                // Try to fit this cut into an existing board piece
-                var bestFitBoard = tempBoardPieces
-                    .Where(bp => bp.CurrentLengthInches >= desiredCutItem.lengthInches)
-                    .OrderBy(bp => bp.CurrentLengthInches - desiredCutItem.lengthInches) // Best fit
-                                                                                         // .ThenByDescending(bp => bp.CurrentLengthInches) // Or First fit from longest
+                double cutLengthInches = desiredCutInstance.LengthInInches;
+                // BoardPiece? bestFitBoardPiece = null; // For Best Fit - Commented out to remove CS0219 warning
+                BoardPiece? firstFitBoardPiece = null; // For First Fit
+
+                // Option 1: First Fit (from longest available piece that fits)
+                firstFitBoardPiece = availableBoardPieces
+                    .Where(bp => bp.CurrentLengthInches >= cutLengthInches)
+                    .OrderByDescending(bp => bp.CurrentLengthInches) // Try on longest boards first
                     .FirstOrDefault();
 
-                if (bestFitBoard != null)
+                // Option 2: Best Fit (minimizes immediate waste for this cut)
+                // bestFitBoardPiece = availableBoardPieces
+                //    .Where(bp => bp.CurrentLengthInches >= cutLengthInches)
+                //    .OrderBy(bp => bp.CurrentLengthInches - cutLengthInches) // Smallest leftover
+                //    .FirstOrDefault();
+
+                var boardToCutFrom = firstFitBoardPiece; // Choose strategy: firstFitBoardPiece or bestFitBoardPiece
+
+                if (boardToCutFrom != null)
                 {
                     result.OptimizedCuts.Add(new OptimizedCut
                     {
-                        OriginalDesiredCut = desiredCutItem.originalCut,
-                        QuantityToCut = 1, // Since we expanded cuts
-                        SourceBoard = bestFitBoard.originalBoard,
-                        SourceBoardOriginalIndex = bestFitBoard.originalIndex,
-                        CutLengthInches = desiredCutItem.lengthInches
+                        OriginalDesiredCut = desiredCutInstance, // This is an instance
+                        QuantityToCut = 1, // We are processing individual cut instances
+                        SourceBoard = boardToCutFrom.OriginalBoard,
+                        SourceBoardOriginalIndex = boardToCutFrom.OriginalBoardIndex,
+                        CutLengthInches = cutLengthInches
                     });
-                    // Update the board piece
-                    var boardToUpdate = tempBoardPieces.First(b => b.pieceId == bestFitBoard.pieceId);
-                    // This is tricky because tempBoardPieces contains anonymous types.
-                    // For a real implementation, use a class for board pieces.
-                    // Let's re-think how to update: we need to modify the list of board pieces.
-
-                    // A better way: keep a list of current board lengths.
-                    // This simple example will get complex quickly.
-                    // For now, let's assume we can track remaining lengths.
-                    // This part needs significant refinement for a real algorithm.
-
-                    // Placeholder: Assume cut is made and we just count.
-                    // In a real scenario, you'd update the remaining length of the source board.
-                    desiredCutsFulfilled++;
-                    cutMade = true;
+                    boardToCutFrom.CurrentLengthInches -= cutLengthInches;
+                    boardToCutFrom.CutsMade.Add(new OptimizedCutDetail { DesiredCut = desiredCutInstance, LengthInches = cutLengthInches });
                 }
-
-                if (!cutMade)
+                else
                 {
-                    // This cut could not be made from available stock.
-                    // The AdditionalMaterialNeededInches already accounts for total shortfall.
-                    // You might want more granular tracking of unfulfilled cuts.
+                    result.AdditionalMaterialNeededInches += cutLengthInches; // This cut couldn't be made
                 }
             }
 
-            if (desiredCutsFulfilled < allDesiredCutPieces.Count)
+            // 4. Calculate results
+            if (result.AdditionalMaterialNeededInches > 0)
             {
-                result.Message = $"Could not fulfill all desired cuts. {allDesiredCutPieces.Count - desiredCutsFulfilled} cuts remaining.";
-            }
-            else if (result.AdditionalMaterialNeededInches > 0)
-            {
-                result.Message = $"Not enough material. Additional needed: {result.AdditionalMaterialNeededFormatted}";
+                result.Message = $"Not enough material. Additional needed: {result.AdditionalMaterialNeededFormatted}.";
             }
             else
             {
-                result.Message = "Optimization complete.";
+                result.Message = "Optimization complete. All requested cuts planned.";
             }
 
-            // Calculate waste (this is also simplified)
-            // True waste is (Total original length of boards used) - (Total length of useful cuts made from them)
-            // Leftover pieces are also important.
-            // This placeholder doesn't accurately calculate waste or remaining pieces yet.
-            result.TotalWasteInches = Math.Max(0, totalAvailableLength - totalDesiredLength);
-            if (result.AdditionalMaterialNeededInches > 0) result.TotalWasteInches = 0;
+            // Calculate total waste from used pieces
+            // Waste = Sum of (OriginalLength - Sum of CutsMadeFromIt) for all pieces that had cuts made
+            // Or, more simply for this greedy approach: Total initial length of pieces that were touched MINUS total length of useful cuts.
+            // This doesn't account for entire boards that were untouched.
+            double lengthOfUsedCuts = result.OptimizedCuts.Sum(oc => oc.CutLengthInches);
+            double originalLengthOfBoardsTouched = availableBoardPieces
+                .Where(bp => bp.CutsMade.Any())
+                .Sum(bp => bp.OriginalBoard.LengthInInches); // Sum of original lengths of pieces that were cut
+
+            if (result.AdditionalMaterialNeededInches == 0) // Only calculate waste if no extra material is needed
+            {
+                // Total waste is the sum of all remaining small pieces on boards that were cut.
+                result.TotalWasteInches = availableBoardPieces
+                    .Where(bp => bp.CutsMade.Any()) // Only consider boards that were actually used
+                    .Sum(bp => bp.CurrentLengthInches); // The remaining length on these boards is waste
+            }
+            else
+            {
+                result.TotalWasteInches = 0; // If we need more material, current "waste" isn't the primary concern.
+            }
 
 
-            // This is a VERY basic placeholder. The actual algorithm is the core challenge.
-            // We will refine this in Phase 5.
-            // For now, it just signals if there's enough total length.
-            result.Message = "Optimizer logic is a placeholder. Actual cutting plan not yet generated.";
+            // Populate remaining boards (pieces with length > 0)
+            result.RemainingBoards = availableBoardPieces
+                .Where(bp => bp.CurrentLengthInches > 0.01) // Consider a small tolerance for "usable"
+                .Select(bp => new Board
+                {
+                    Id = bp.OriginalBoard.Id, // Link back to original type
+                    Length = bp.CurrentLengthInches, // This is remaining length
+                    LengthUnit = "in", // It's in inches now
+                    Quantity = 1 // Each remaining piece is individual
+                })
+                .ToList();
+
+
+            // Consolidate OptimizedCuts for display if desired (e.g., group by desired cut type and source board type)
+            // The current display logic in the Razor page does some grouping.
+
             return result;
         }
     }
