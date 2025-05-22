@@ -12,7 +12,7 @@ namespace lumber_app.Models
         {
             get
             {
-                return UnitConvert.ConvertToInches(Length, LengthUnit);
+                return UnitConverter.ConvertToInches(Length, LengthUnit);
             }
         }
     }
