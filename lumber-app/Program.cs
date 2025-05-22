@@ -3,6 +3,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 
+using LumberOptimizerWeb.Services; // Add this using
+
+// ... other services
+builder.Services.AddScoped<ICuttingOptimizer, SimpleCuttingOptimizer>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("lumber-app")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2aedb0a9a4e59d620f87516dbd392ecfe0e5b97f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0ee3c78010b581f90b621f93e8c0ba6387d25a00")]
 [assembly: System.Reflection.AssemblyProductAttribute("lumber-app")]
 [assembly: System.Reflection.AssemblyTitleAttribute("lumber-app")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

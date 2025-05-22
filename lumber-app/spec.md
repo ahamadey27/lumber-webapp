@@ -104,9 +104,9 @@
 - [x] Add navigation link to Unit Converter in `Pages/Shared/_Layout.cshtml`.
 
 ## Phase 3: Board-Cut Optimizer - Service Interface & Data Structures
-- [ ] Define `Services/ICuttingOptimizer.cs` interface and supporting classes:
-    - [ ] `CutPlanResult` class.
-    - [ ] `OptimizedCut` class.
+- [x] Define `Services/ICuttingOptimizer.cs` interface and supporting classes:
+    - [x] `CutPlanResult` class.
+    - [x] `OptimizedCut` class.
 - [ ] Create a basic implementation `Services/SimpleCuttingOptimizer.cs` (initial placeholder logic).
 - [ ] Register the `ICuttingOptimizer` service in `Program.cs` (`builder.Services.AddScoped<ICuttingOptimizer, SimpleCuttingOptimizer>();`).
 
