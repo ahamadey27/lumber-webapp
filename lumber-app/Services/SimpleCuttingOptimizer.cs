@@ -4,21 +4,11 @@ using System.Linq;
 
 namespace lumber_app.Services
 {
-    // Helper class to track individual board pieces with mutable length
-    internal class MutableBoardPiece
-    {
-        public required Board OriginalBoard { get; set; }
-        public int OriginalIndex { get; set; }
-        public double CurrentLengthInches { get; set; }
-        public int PieceId { get; set; }
-        public List<OptimizedCut> CutsMadeFromThisPiece { get; set; } = new List<OptimizedCut>();
-    }
-
     public class SimpleCuttingOptimizer : ICuttingOptimizer
     {
         public CutPlanResult OptimizeCuts(
-           List<Board> availableBoards,
-           List<DesiredCut> desiredCuts)
+            List<Board> availableBoards,
+            List<DesiredCut> desiredCuts)
         {
             var result = new CutPlanResult();
             // --- Initial Setup ---
@@ -33,7 +23,6 @@ namespace lumber_app.Services
                     allAvailableBoardPieces.Add((board, boardIdx, board.LengthInInches, pieceCounter++));
                 }
                 boardIdx++;
-
             }
 
             // Convert all desired cut lengths to inches and sort by length (descending often good for greedy)
@@ -49,13 +38,14 @@ namespace lumber_app.Services
             }
 
             // --- Simple Greedy Algorithm (First Fit Decreasing Height) ---
-            var tempBoardPieces = allAvailableBoardPieces.Select(b => new MutableBoardPiece // Changed from anonymous type
+            // This is a basic example. More sophisticated algorithms exist (e.g., bin packing variations).
+            var tempBoardPieces = allAvailableBoardPieces.Select(b => new
             {
-                OriginalBoard = b.originalBoard,
-                OriginalIndex = b.originalIndex,
+                b.originalBoard,
+                b.originalIndex,
                 CurrentLengthInches = b.lengthInches,
-                PieceId = b.pieceId
-                // CutsMadeFromThisPiece is initialized to an empty list by the MutableBoardPiece class
+                b.pieceId,
+                CutsMade = new List<OptimizedCut>()
             }).ToList();
 
             double totalDesiredLength = allDesiredCutPieces.Sum(c => c.lengthInches);
@@ -68,7 +58,7 @@ namespace lumber_app.Services
             {
                 bool cutMade = false;
                 // Try to fit this cut into an existing board piece
-                var bestFitBoard = tempBoardPieces // bestFitBoard is now a MutableBoardPiece
+                var bestFitBoard = tempBoardPieces
                     .Where(bp => bp.CurrentLengthInches >= desiredCutItem.lengthInches)
                     .OrderBy(bp => bp.CurrentLengthInches - desiredCutItem.lengthInches) // Best fit
                                                                                          // .ThenByDescending(bp => bp.CurrentLengthInches) // Or First fit from longest
@@ -76,20 +66,27 @@ namespace lumber_app.Services
 
                 if (bestFitBoard != null)
                 {
-                    var newOptimizedCut = new OptimizedCut
+                    result.OptimizedCuts.Add(new OptimizedCut
                     {
                         OriginalDesiredCut = desiredCutItem.originalCut,
                         QuantityToCut = 1, // Since we expanded cuts
-                        SourceBoard = bestFitBoard.OriginalBoard,
-                        SourceBoardOriginalIndex = bestFitBoard.OriginalIndex,
-                        CutLengthToInches = desiredCutItem.lengthInches // Using CutLengthInches as per your visible code
-                    };
-                    result.OptimizedCuts.Add(newOptimizedCut);
-                    
-                    // Update the board piece directly
-                    bestFitBoard.CurrentLengthInches -= desiredCutItem.lengthInches;
-                    bestFitBoard.CutsMadeFromThisPiece.Add(newOptimizedCut); // Track the cut on this specific board piece
+                        SourceBoard = bestFitBoard.originalBoard,
+                        SourceBoardOriginalIndex = bestFitBoard.originalIndex,
+                        CutLengthInches = desiredCutItem.lengthInches
+                    });
+                    // Update the board piece
+                    var boardToUpdate = tempBoardPieces.First(b => b.pieceId == bestFitBoard.pieceId);
+                    // This is tricky because tempBoardPieces contains anonymous types.
+                    // For a real implementation, use a class for board pieces.
+                    // Let's re-think how to update: we need to modify the list of board pieces.
 
+                    // A better way: keep a list of current board lengths.
+                    // This simple example will get complex quickly.
+                    // For now, let's assume we can track remaining lengths.
+                    // This part needs significant refinement for a real algorithm.
+
+                    // Placeholder: Assume cut is made and we just count.
+                    // In a real scenario, you'd update the remaining length of the source board.
                     desiredCutsFulfilled++;
                     cutMade = true;
                 }
@@ -129,8 +126,5 @@ namespace lumber_app.Services
             result.Message = "Optimizer logic is a placeholder. Actual cutting plan not yet generated.";
             return result;
         }
-
     }
-
-    
 }
