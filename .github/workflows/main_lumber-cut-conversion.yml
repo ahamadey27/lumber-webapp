@@ -18,15 +18,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Display GITHUB_WORKSPACE content (root)
+        run: Get-ChildItem -Path ${{ github.workspace }} -Recurse -Force
+        shell: pwsh
+
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.x'
 
+      - name: Display content of lumber-app directory before build
+        working-directory: lumber-app
+        run: Get-ChildItem -Recurse -Force
+        shell: pwsh
+
       - name: Build with dotnet
+        working-directory: lumber-app
         run: dotnet build --configuration Release
 
       - name: dotnet publish
+        working-directory: lumber-app
         run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
 
       - name: Upload artifact for deployment job
