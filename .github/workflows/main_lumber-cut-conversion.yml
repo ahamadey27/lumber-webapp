@@ -25,11 +25,11 @@ jobs:
 
       - name: Build with dotnet
         working-directory: lumber-app
-        run: dotnet build lumber-app.csproj --configuration Release
+        run: dotnet build --configuration Release # Rely on auto-detection in working-directory
 
       - name: dotnet publish
         working-directory: lumber-app
-        run: dotnet publish lumber-app.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: dotnet publish --configuration Release -o "${{env.DOTNET_ROOT}}/myapp" # Rely on auto-detection
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
