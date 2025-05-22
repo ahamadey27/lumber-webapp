@@ -44,7 +44,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: net-app
-          path: ./net-app # Download to a known folder
+          path: ${{ github.workspace }}/net-app # Absolute path for clarity
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
@@ -52,5 +52,5 @@ jobs:
         with:
           app-name: 'lumber-cut-conversion'
           slot-name: 'Production'
-          package: ./net-app # Deploy from the downloaded artifact folder
+          package: ${{ github.workspace }}/net-app # Deploy from the downloaded artifact folder
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_4EEA6B7E9F8F4655988F8A5F9DFCC8D3 }}
